@@ -1,0 +1,29 @@
+# https://hub.docker.com/r/riggraz/astuto
+version: '3'
+volumes:
+  postgres:
+services:
+  db:
+    image: mdillon/postgis
+    environment:
+      - POSTGRES_USER=pg
+      - POSTGRES_PASSWORD=pass
+      - DATABASE_URL=postgres://pg:pass@db/
+    volumes:
+      - postgres:/var/lib/postgresql/data
+  web:
+    image: riggraz/astuto
+    environment:
+      - ENVIRONMENT=production
+      - SECRET_KEY_BASE=s5u8x/A?D(G+KbPeShVmYq3t6w9z$B&E)H@McQfTjWnZr4u7x!A%D*F-JaNdRgUk
+      - POSTGRES_USER=pg
+      - DATABASE_URL=postgres://pg:pass@db/
+      - POSTGRES_PASSWORD=pass
+      - EMAIL_CONFIRMATION=no
+      - APP_NAME=Feedback
+      - SHOW_LOGO=yes
+      - POSTS_PER_PAGE=15
+    ports:
+      - "3000:3000"
+    depends_on:
+      - db

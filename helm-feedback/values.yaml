@@ -1,0 +1,20 @@
+app:
+  image: riggraz/astuto
+  env:
+    EMAIL_CONFIRMATION: 'no'
+    APP_NAME: Feedback
+    SHOW_LOGO: 'no'
+    POSTS_PER_PAGE: 15
+    ENVIRONMENT: 'production'
+  service:
+    type: ClusterIP
+    port: 3000
+    targetPort: 3000
+    portName: db
+db:
+  image: mdillon/postgis
+  service:
+    type: ClusterIP
+    port: 5432
+    targetPort: 5432
+    portName: db

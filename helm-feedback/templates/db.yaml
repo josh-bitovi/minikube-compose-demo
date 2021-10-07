@@ -1,0 +1,84 @@
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: db-setup
+spec:
+  ttlSecondsAfterFinished: 0
+  template:
+    metadata:
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: migrate-and-seed
+        image: {{ .Values.app.image }}
+        imagePullPolicy: {{ default "Always" .Values.imagePullPolicy }}
+        command:
+          - sh
+        args: ["-c", "yarn install --check-files; rake db:migrate"]
+        envFrom:
+        - secretRef:
+            name: db-secret
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: db
+  labels:
+    app: db
+spec:
+  selector:
+    matchLabels:
+      app: db
+  template:
+    metadata:
+      labels:
+        app: db
+    spec:
+      containers:
+      - name: db
+        image: {{ required "database image is required!" .Values.db.image }}
+        imagePullPolicy: {{ default "Always" .Values.imagePullPolicy }}
+        env:
+        {{- range $name, $value := .Values.db.env }}
+        - name: {{ $name }}
+          value: {{ default "" $value | quote }}
+        {{- end }}
+        envFrom:
+        - secretRef:
+            name: db-secret
+        ports:
+          - name: {{ .Values.db.service.portName }}
+            containerPort: {{ .Values.db.service.targetPort }}
+            protocol: {{ default "TCP" .Values.db.service.protocol  }}
+{{- with .Values.db.secret }}
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: db-secret
+  annotations:
+type: Opaque
+data:
+{{- range $name, $value := .env }}
+{{- if not (empty $value) }}
+  {{ $name }}: {{ $value | b64enc }}
+{{- end }}
+{{- end }}
+{{- end }}
+---
+{{- with .Values.db.service }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: db
+spec:
+  type: {{ .type }}
+  ports:
+  - targetPort: {{ .targetPort }}
+    port: {{ .port }}
+    protocol: {{ default "TCP" .protocol  }}
+    name: {{ .portName }}
+  selector:
+    app: db
+{{- end }}

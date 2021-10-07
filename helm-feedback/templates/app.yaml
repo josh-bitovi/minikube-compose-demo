@@ -1,0 +1,65 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app
+  labels:
+    app: app
+spec:
+  selector:
+    matchLabels:
+      app: app
+  template:
+    metadata:
+      labels:
+        app: app
+    spec:
+      containers:
+      - name: app
+        image: {{ required "database image is required!" .Values.app.image }}
+        imagePullPolicy: {{ default "Always" .Values.imagePullPolicy }}
+        env:
+        {{- range $name, $value := .Values.app.env }}
+        - name: {{ $name }}
+          value: {{ default "" $value | quote }}
+        {{- end }}
+        envFrom:
+        - secretRef:
+            name: app-secret
+        - secretRef:
+            name: db-secret
+        ports:
+          - name: {{ .Values.app.service.portName }}
+            containerPort: {{ .Values.app.service.targetPort }}
+            protocol: {{ default "TCP" .Values.app.service.protocol  }}
+{{- with .Values.app.secret }}
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: app-secret
+  annotations:
+type: Opaque
+data:
+{{- range $name, $value := .env }}
+{{- if not (empty $value) }}
+  {{ $name }}: {{ $value | b64enc }}
+{{- end }}
+{{- end }}
+{{- end }}
+---
+{{- with .Values.app.service }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: app
+spec:
+  type: {{ .type }}
+  ports:
+  - targetPort: {{ .targetPort }}
+    port: {{ .port }}
+    protocol: {{ default "TCP" .protocol  }}
+    name: {{ .portName }}
+  selector:
+    app: app
+{{- end }}
